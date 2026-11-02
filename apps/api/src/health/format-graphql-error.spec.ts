@@ -7,8 +7,10 @@ describe('formatGraphQLError', () => {
       locations: [{ line: 1, column: 2 }],
       path: ['foundationHealth'],
       extensions: {
-        code: 'INTERNAL_SERVER_ERROR',
+        code: 'UNAUTHENTICATED',
+        i18nKey: 'auth.unauthenticated',
         stacktrace: ['Error: Something failed', 'at hidden'],
+        password: 'should-not-leak',
       },
     });
 
@@ -16,9 +18,13 @@ describe('formatGraphQLError', () => {
       message: 'Something failed',
       locations: [{ line: 1, column: 2 }],
       path: ['foundationHealth'],
-      extensions: { code: 'INTERNAL_SERVER_ERROR' },
+      extensions: {
+        code: 'UNAUTHENTICATED',
+        i18nKey: 'auth.unauthenticated',
+      },
     });
     expect(JSON.stringify(formatted)).not.toContain('stacktrace');
     expect(JSON.stringify(formatted)).not.toContain('at hidden');
+    expect(JSON.stringify(formatted)).not.toContain('should-not-leak');
   });
 });

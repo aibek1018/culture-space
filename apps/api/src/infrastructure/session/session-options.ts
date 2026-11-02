@@ -15,6 +15,7 @@ export function createSessionOptions(
     secret: config.sessionSecret,
     resave: false,
     saveUninitialized: false,
+    rolling: true,
     cookie: {
       httpOnly: true,
       sameSite: 'lax',

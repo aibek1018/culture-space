@@ -154,9 +154,9 @@ The API container uses `SMTP_HOST=mailpit` and signs avatar URLs for `http://hos
 
 ## GitHub Actions status
 
-NOT VERIFIED. The corrected workflow is committed locally and has not been pushed. No remote run was started, and the branch was not merged.
+The first remote run of `3ee836b`, https://github.com/aibek1018/culture-space/actions/runs/41438733810, failed in `quality` because `pnpm typecheck` loads `apps/web/next.config.ts` and that file requires `API_INTERNAL_URL`. The workflow now sets `API_INTERNAL_URL=http://127.0.0.1:4000` for every job. `unit`, `integration`, and `e2e` passed on that run. `migrations` and `build` did not start.
 
-The workflow is three stages: Tests (`quality`, `unit`, `integration`, `e2e`, then the `tests` gate), Migrations, then Build. The stable required check remains `verify`. Triggers are pushes to `main`, pushes to `feature/**`, and pull requests targeting `main`. The integration and end-to-end jobs use PostgreSQL 17 and Redis 7 and set `maxmemory-policy` to `noeviction`. The migration job uses a separate fresh PostgreSQL 17 database named `culturespace_migrations`. Exact commands and local results are in `CI_PIPELINE_REPORT.md`.
+The workflow is three stages: Tests (`quality`, `unit`, `integration`, `e2e`, then the `tests` gate), Migrations, then Build. The stable required check remains `verify`. Triggers are pushes to `main`, pushes to `feature/**`, and pull requests targeting `main`. The integration and end-to-end jobs use PostgreSQL 17 and Redis 7 and set `maxmemory-policy` to `noeviction`. The migration job uses a separate fresh PostgreSQL 17 database named `culturespace_migrations`. Exact commands and local results are in `CI_PIPELINE_REPORT.md`. The branch has not been merged.
 
 ## Remaining issues
 

@@ -12,6 +12,9 @@ on:
 permissions:
   contents: read
 
+env:
+  API_INTERNAL_URL: http://127.0.0.1:4000
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}

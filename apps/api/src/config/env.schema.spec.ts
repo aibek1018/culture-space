@@ -1,4 +1,8 @@
-import { LOCAL_DEVELOPMENT_SESSION_SECRET, validateEnv } from './env.schema';
+import {
+  LOCAL_DEVELOPMENT_MINIO_SECRET,
+  LOCAL_DEVELOPMENT_SESSION_SECRET,
+  validateEnv,
+} from './env.schema';
 
 const validEnv = {
   NODE_ENV: 'test',
@@ -68,6 +72,19 @@ describe('validateEnv', () => {
       sessionSecret: validEnv.SESSION_SECRET,
       appOrigin: validEnv.APP_ORIGIN,
       logLevel: 'info',
+      smtpHost: '127.0.0.1',
+      smtpPort: 1025,
+      smtpFrom: 'noreply@culturespace.local',
+      smtpUser: null,
+      smtpPassword: null,
+      minioEndpoint: 'http://127.0.0.1:9000',
+      minioAccessKey: 'culturespace',
+      minioSecretKey: LOCAL_DEVELOPMENT_MINIO_SECRET,
+      minioBucket: 'avatars',
+      minioPublicBaseUrl: 'http://127.0.0.1:9000',
+      outboxPollIntervalMs: 1000,
+      outboxBackoffMs: 1000,
+      outboxQueueName: 'cs-outbox',
     });
   });
 
@@ -80,6 +97,30 @@ describe('validateEnv', () => {
         SESSION_SECRET: LOCAL_DEVELOPMENT_SESSION_SECRET,
       }),
     ).toThrow(/SESSION_SECRET/);
+  });
+
+  it('rejects the local object-storage secret and an http media URL in production', () => {
+    expect(() =>
+      validateEnv({
+        ...validEnv,
+        NODE_ENV: 'production',
+        APP_ORIGIN: 'https://culturespace.example',
+        SESSION_SECRET: 'production-session-secret-value-32',
+        MINIO_SECRET_KEY: LOCAL_DEVELOPMENT_MINIO_SECRET,
+        MINIO_PUBLIC_BASE_URL: 'https://media.culturespace.example',
+      }),
+    ).toThrow(/MINIO_SECRET_KEY/);
+
+    expect(() =>
+      validateEnv({
+        ...validEnv,
+        NODE_ENV: 'production',
+        APP_ORIGIN: 'https://culturespace.example',
+        SESSION_SECRET: 'production-session-secret-value-32',
+        MINIO_SECRET_KEY: 'production-object-storage-secret',
+        MINIO_PUBLIC_BASE_URL: 'http://media.culturespace.example',
+      }),
+    ).toThrow(/MINIO_PUBLIC_BASE_URL/);
   });
 
   it('rejects an http application origin in production', () => {

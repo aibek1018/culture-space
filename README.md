@@ -1,6 +1,6 @@
 # CULTURE SPACE
 
-Milestone 1 foundation for the CULTURE SPACE modular monolith. This repository contains a NestJS API, a Next.js shell, and a local Docker Compose stack. Product features such as accounts, catalog, library, reviews, and clubs are not implemented.
+Milestone 2 authentication and users for the CULTURE SPACE modular monolith. This repository contains a NestJS API, a Next.js shell, and a local Docker Compose stack. Catalog, library, reviews, discussions, and clubs are not implemented.
 
 The approved architecture is version 0.4. This milestone does not change it.
 
@@ -60,7 +60,7 @@ MinIO is the public Chainguard build `cgr.dev/chainguard/minio`, pinned by diges
 | Mailpit UI    | http://127.0.0.1:8025 |
 | Mailpit SMTP  | 127.0.0.1:1025        |
 
-The API does not connect to MinIO or Mailpit in this milestone. They are started so later milestones can use the same stack.
+The API sends verification and password-reset mail through Mailpit. Avatar uploads use MinIO. Redis is started with `maxmemory-policy noeviction` so BullMQ jobs are not evicted. Inside Compose, presigned avatar URLs use `host.docker.internal:9000`, which is the published MinIO port.
 
 PostgreSQL and Redis are published only on the loopback interface for local development. The production Compose file, which does not publish them, belongs to Milestone 12.
 
@@ -68,7 +68,7 @@ The first container start installs dependencies into Docker volumes and can take
 
 ## Database migrations
 
-TypeORM is configured with `synchronize: false` in every environment. The migrations directory is `apps/api/src/database/migrations`. No product tables are created in this milestone.
+TypeORM is configured with `synchronize: false` in every environment. Milestone 2 migration `CreateIdentityTables1730563200000` creates users, preferences, email and password tokens, restrictions, follows, and `outbox_messages`. It does not create catalog tables or favorite junction tables. Those foreign keys belong to Milestone 3.
 
 From `apps/api`, with a valid `DATABASE_URL`:
 
@@ -76,6 +76,18 @@ From `apps/api`, with a valid `DATABASE_URL`:
 pnpm migration:show
 pnpm migration:run
 ```
+
+Create the first administrator after the migration. The password is read from the environment and is not stored in the repository:
+
+```bash
+BOOTSTRAP_ADMIN_EMAIL=admin@example.com \
+BOOTSTRAP_ADMIN_USERNAME=admin_user \
+BOOTSTRAP_ADMIN_PASSWORD='a-long-password' \
+BOOTSTRAP_ADMIN_FULL_NAME='Site Admin' \
+pnpm --filter @culture-space/api bootstrap:admin
+```
+
+Running the command again for the same administrator email leaves that account unchanged.
 
 ## Checks
 
@@ -88,22 +100,19 @@ pnpm build
 pnpm format
 ```
 
-`pnpm test` does not need PostgreSQL or Redis. It covers environment validation, the disabled TypeORM synchronize flag, session cookie flags, process startup, `GET /health`, `GET /ready` when both dependencies are down, and the temporary GraphQL query.
+`pnpm test` does not need PostgreSQL or Redis. It covers environment validation, the disabled TypeORM synchronize flag, session cookie flags, password policy, privacy, outbox reconciliation decisions, process startup, `GET /health`, `GET /ready` when both dependencies are down, and the temporary GraphQL query.
 
-`pnpm test:integration` needs the real services from `.env` or from the environment. It checks:
+`pnpm test:integration` needs PostgreSQL and Redis. It creates `culturespace_test` from the database named in `DATABASE_URL` and runs the authentication, follow, and outbox journeys there. Mail is replaced by an in-process mailer, so Mailpit is not required for CI.
 
-- `GET /ready` returns 200 when PostgreSQL and Redis both respond
-- `GET /ready` returns 503 when only PostgreSQL is down
-- `GET /ready` returns 503 when only Redis is down
-- a session payload can be stored and read through `connect-redis`
-
-GitHub Actions runs the same install, lint, typecheck, unit tests, integration tests, and production builds. The workflow is `.github/workflows/ci.yml`. It does not deploy.
+GitHub Actions runs format, lint, typecheck, unit tests, integration tests, and production builds as separate jobs. The integration job sets Redis `maxmemory-policy` to `noeviction`. The `verify` job passes only when every job passes. The workflow is `.github/workflows/ci.yml`. It does not deploy.
 
 ## Temporary GraphQL query
 
 `foundationHealth` exists only to prove that GraphQL Code First generates a schema. It is not part of the product contract in `GRAPHQL_API.md`. Remove `FoundationHealthResolver` before production.
 
-Session middleware is mounted on `/graphql` only. It stores session data in Redis with an HttpOnly, `SameSite=Lax` cookie named `cs.sid`. The cookie is `Secure` in production. Login, registration, session regeneration, and the 30-day absolute lifetime are Milestone 2. The idle lifetime configured here is 14 days.
+Session middleware is mounted on `/graphql`. The cookie is `cs.sid`, HttpOnly, `SameSite=Lax`, and `Secure` in production. Login and registration regenerate the session id. The idle lifetime is 14 days and the absolute lifetime is 30 days. The session stores the user id and issue time. Role and account status are loaded from PostgreSQL on each request.
+
+GraphQL mutations require `Origin` or `Referer` matching `APP_ORIGIN` and the header `x-culturespace-client: web`. Registration, login, and password reset are rate limited. The global GraphQL limit is 300 requests per minute per IP. Queries still run when that counter cannot be stored. Mutations return `auth.rate_limit_unavailable` instead.
 
 ## Troubleshooting
 

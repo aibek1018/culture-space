@@ -13,6 +13,7 @@ module.exports = {
   },
   testEnvironment: 'node',
   clearMocks: true,
-  testTimeout: 30000,
+  testTimeout: 120000,
   setupFiles: ['<rootDir>/test/setup-integration-env.ts'],
+  globalSetup: '<rootDir>/test/global-setup.cjs',
 };

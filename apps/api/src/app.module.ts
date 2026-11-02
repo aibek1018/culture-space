@@ -1,20 +1,48 @@
+import 'reflect-metadata';
 import {
-  MiddlewareConsumer,
+  type MiddlewareConsumer,
   Module,
   type NestModule,
   RequestMethod,
 } from '@nestjs/common';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { GraphQLModule } from '@nestjs/graphql';
 import { ApolloDriver, type ApolloDriverConfig } from '@nestjs/apollo';
+import type { ApolloServerPlugin } from '@apollo/server';
 import type { Request, Response } from 'express';
 import { AppConfigModule } from './config/app-config.module';
 import { AppConfigService } from './config/app-config.service';
 import { DatabaseModule } from './database/database.module';
 import { formatGraphQLError } from './health/format-graphql-error';
 import { HealthModule } from './health/health.module';
+import { AuthContextMiddleware } from './common/auth/auth-context.middleware';
+import { GraphqlGuardrailsInterceptor } from './common/auth/graphql-guardrails.interceptor';
+import { DomainExceptionFilter } from './common/errors/domain-exception.filter';
+import { assertGraphqlBudget } from './common/graphql/complexity';
+import { UuidScalar } from './common/graphql/uuid.scalar';
 import { AppLoggerModule } from './infrastructure/logger/logger.module';
+import { OutboxModule } from './infrastructure/outbox/outbox.module';
 import { RedisModule } from './infrastructure/redis/redis.module';
-import { SessionMiddleware } from './infrastructure/session/session.middleware';
+import { SessionModule } from './infrastructure/session/session.module';
+import { SessionService } from './infrastructure/session/session.service';
+import { AuthModule } from './modules/auth/auth.module';
+import { ModerationModule } from './modules/moderation/moderation.module';
+import { UsersModule } from './modules/users/users.module';
+
+const graphqlGuardPlugin: ApolloServerPlugin = {
+  async requestDidStart() {
+    return {
+      async didResolveOperation(requestContext) {
+        assertGraphqlBudget(
+          requestContext.schema,
+          requestContext.document,
+          requestContext.request.variables,
+          requestContext.operationName,
+        );
+      },
+    };
+  },
+};
 
 @Module({
   imports: [
@@ -22,6 +50,11 @@ import { SessionMiddleware } from './infrastructure/session/session.middleware';
     AppLoggerModule,
     DatabaseModule,
     RedisModule,
+    SessionModule,
+    OutboxModule,
+    UsersModule,
+    AuthModule,
+    ModerationModule,
     GraphQLModule.forRootAsync<ApolloDriverConfig>({
       driver: ApolloDriver,
       inject: [AppConfigService],
@@ -37,15 +70,21 @@ import { SessionMiddleware } from './infrastructure/session/session.middleware';
           res,
         }),
         formatError: formatGraphQLError,
+        plugins: [graphqlGuardPlugin],
       }),
     }),
     HealthModule,
   ],
-  providers: [SessionMiddleware],
+  providers: [
+    UuidScalar,
+    AuthContextMiddleware,
+    { provide: APP_FILTER, useClass: DomainExceptionFilter },
+    { provide: APP_INTERCEPTOR, useClass: GraphqlGuardrailsInterceptor },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
-    consumer.apply(SessionMiddleware).forRoutes({
+    consumer.apply(SessionService, AuthContextMiddleware).forRoutes({
       path: 'graphql',
       method: RequestMethod.ALL,
     });

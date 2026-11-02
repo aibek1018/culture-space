@@ -34,4 +34,56 @@ export class AppConfigService {
   get logLevel(): AppConfig['logLevel'] {
     return this.config.logLevel;
   }
+
+  get smtpHost(): string {
+    return this.config.smtpHost;
+  }
+
+  get smtpPort(): number {
+    return this.config.smtpPort;
+  }
+
+  get smtpFrom(): string {
+    return this.config.smtpFrom;
+  }
+
+  get smtpUser(): string | null {
+    return this.config.smtpUser;
+  }
+
+  get smtpPassword(): string | null {
+    return this.config.smtpPassword;
+  }
+
+  get minioEndpoint(): string {
+    return this.config.minioEndpoint;
+  }
+
+  get minioAccessKey(): string {
+    return this.config.minioAccessKey;
+  }
+
+  get minioSecretKey(): string {
+    return this.config.minioSecretKey;
+  }
+
+  get minioBucket(): string {
+    return this.config.minioBucket;
+  }
+
+  get minioPublicBaseUrl(): string {
+    return this.config.minioPublicBaseUrl;
+  }
+
+  get outboxPollIntervalMs(): number {
+    return this.config.outboxPollIntervalMs;
+  }
+
+  get outboxBackoffMs(): number {
+    return this.config.outboxBackoffMs;
+  }
+
+  get outboxQueueName(): string {
+    return this.config.outboxQueueName;
+  }
 }

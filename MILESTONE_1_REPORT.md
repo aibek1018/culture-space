@@ -4,7 +4,7 @@ Date: 2026-11-02
 
 Architecture baseline: version 0.4, unchanged.
 
-Final status: **COMPLETE** for the local acceptance checks. A remote GitHub Actions run was not observed, so that run stays **NOT VERIFIED**. Milestone 2 was not started.
+Final status: **COMPLETE**. The remote GitHub Actions run on commit `4a0d9cd` succeeded. Milestone 2 was not started.
 
 ## 1. Implemented infrastructure
 
@@ -216,38 +216,37 @@ The last source change routes those links through `next-intl` `getPathname` and 
 
 `.github/workflows/ci.yml` is configured for pushes to `main` and for pull requests. The job uses Node.js 24.22.2, pnpm 12.16.1, `pnpm install --frozen-lockfile`, lint, typecheck, unit tests, integration tests, and production builds. PostgreSQL 17 and Redis 7 are GitHub Actions service containers. The workflow does not deploy and does not publish images.
 
-**Remote CI was NOT VERIFIED.** This directory is not a git repository, and no GitHub Actions run was observed. The local equivalents passed, including the integration tests against Compose PostgreSQL and Redis.
+**Remote CI passed.** The repository is https://github.com/aibek1018/culture-space. Commit `4a0d9cd77ab55d29e52a977287dd1247608f8a0a` is `origin/main`. The workflow run https://github.com/aibek1018/culture-space/actions/runs/41417777084 completed with conclusion `success` on 2026-11-02. That run installs from a fresh checkout with `pnpm install --frozen-lockfile`. The job log was not opened line by line; the result comes from the GitHub Actions API.
 
 ## 10. Acceptance checklist
 
-| Criterion                                                  | Result                                                                                                                                                         |
-| ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| A clean checkout can install dependencies                  | PASS — `pnpm install --frozen-lockfile` succeeded on this tree. `node_modules` was not deleted and installed again from an empty directory in the final sweep. |
-| The pnpm workspace is valid                                | PASS                                                                                                                                                           |
-| NestJS builds and starts                                   | PASS — `nest build` succeeded and the built process logged a successful start.                                                                                 |
-| Next.js builds and renders the bilingual placeholder       | PASS — production build plus browser EN/RU navigation.                                                                                                         |
-| PostgreSQL and Redis connect successfully                  | PASS — `GET /ready` returned 200 from the Compose stack, and the integration suite connected to both.                                                          |
-| Redis-backed session middleware is configured              | PASS — cookie options in unit tests, and a `connect-redis` write, read, and delete in the integration test.                                                    |
-| TypeORM DataSource is configured                           | PASS                                                                                                                                                           |
-| TypeORM `synchronize` remains false                        | PASS — asserted in unit tests.                                                                                                                                 |
-| GraphQL Code First infrastructure starts                   | PASS — `foundationHealth` returned `"ok"` from the running API.                                                                                                |
-| `GET /health` works                                        | PASS — HTTP 200.                                                                                                                                               |
-| `GET /ready` reports actual PostgreSQL and Redis readiness | PASS — 200 when both are up; 503 when either one is down; 503 when both are down.                                                                              |
-| Docker Compose starts the local development stack          | PASS — `docker compose up --build -d` exited 0 and all six services became healthy.                                                                            |
-| MinIO and Mailpit start successfully                       | PASS — both containers healthy; MinIO live check and the Mailpit UI returned 200.                                                                              |
-| Strict TypeScript checks pass                              | PASS                                                                                                                                                           |
-| ESLint checks pass                                         | PASS                                                                                                                                                           |
-| Tests pass                                                 | PASS — API unit 21, web unit 4, integration 3.                                                                                                                 |
-| Root build commands pass                                   | PASS                                                                                                                                                           |
-| GitHub Actions workflow is configured                      | PASS for the workflow file. A remote run was NOT VERIFIED.                                                                                                     |
-| README documents local setup                               | PASS                                                                                                                                                           |
-| No Milestone 2 business functionality was implemented      | PASS                                                                                                                                                           |
+| Criterion                                                  | Result                                                                                                                         |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| A clean checkout can install dependencies                  | PASS — the GitHub Actions run installed this commit from a fresh checkout with `pnpm install --frozen-lockfile` and succeeded. |
+| The pnpm workspace is valid                                | PASS                                                                                                                           |
+| NestJS builds and starts                                   | PASS — `nest build` succeeded and the built process logged a successful start.                                                 |
+| Next.js builds and renders the bilingual placeholder       | PASS — production build plus browser EN/RU navigation.                                                                         |
+| PostgreSQL and Redis connect successfully                  | PASS — `GET /ready` returned 200 from the Compose stack, and the integration suite connected to both.                          |
+| Redis-backed session middleware is configured              | PASS — cookie options in unit tests, and a `connect-redis` write, read, and delete in the integration test.                    |
+| TypeORM DataSource is configured                           | PASS                                                                                                                           |
+| TypeORM `synchronize` remains false                        | PASS — asserted in unit tests.                                                                                                 |
+| GraphQL Code First infrastructure starts                   | PASS — `foundationHealth` returned `"ok"` from the running API.                                                                |
+| `GET /health` works                                        | PASS — HTTP 200.                                                                                                               |
+| `GET /ready` reports actual PostgreSQL and Redis readiness | PASS — 200 when both are up; 503 when either one is down; 503 when both are down.                                              |
+| Docker Compose starts the local development stack          | PASS — `docker compose up --build -d` exited 0 and all six services became healthy.                                            |
+| MinIO and Mailpit start successfully                       | PASS — both containers healthy; MinIO live check and the Mailpit UI returned 200.                                              |
+| Strict TypeScript checks pass                              | PASS                                                                                                                           |
+| ESLint checks pass                                         | PASS                                                                                                                           |
+| Tests pass                                                 | PASS — API unit 21, web unit 4, integration 3.                                                                                 |
+| Root build commands pass                                   | PASS                                                                                                                           |
+| GitHub Actions workflow is configured                      | PASS — run 41417777084 on commit `4a0d9cd` completed with conclusion `success`.                                                |
+| README documents local setup                               | PASS                                                                                                                           |
+| No Milestone 2 business functionality was implemented      | PASS                                                                                                                           |
 
 ## 11. Remaining issues and environment limitations
 
 - The `docker` client is not on the default `PATH`. Docker Desktop 4.97.0 is installed under the user profile, and the engine was running.
 - Host port 5432 is already taken by a local `postgres` process. This machine's `.env` publishes Compose PostgreSQL on `5433`. The database inside the Compose network stays on 5432.
-- The workspace is not a git repository, and GitHub Actions was not run.
 - The system Node.js is 22.14.0. Commands used a portable Node.js 24.22.2. The project itself requires Node.js 24.
 - Jest prints `ExperimentalWarning: VM Modules` because of `--experimental-vm-modules`.
 - `foundationHealth` is temporary scaffolding and must be removed before production.
@@ -268,9 +267,9 @@ Other choices inside the approved baseline:
 
 ## 13. Final milestone status
 
-**COMPLETE** for the Milestone 1 acceptance checks that can be executed on this machine.
+**COMPLETE**
 
-The remote GitHub Actions run was not observed. The workflow file is present, and the same install, lint, typecheck, test, integration, and build commands passed locally.
+Local checks and the published GitHub Actions run on commit `4a0d9cd` passed. Milestone 2 was not started.
 
 ## Closing summary
 
@@ -278,6 +277,6 @@ Implemented: the pnpm workspace, NestJS API foundation, Next.js bilingual shell,
 
 Tested: environment validation, application boot, `/health`, `/ready` with both dependencies up, with one down, and with both down, `synchronize: false`, GraphQL initialization, a `connect-redis` round trip, the bilingual placeholder, lint, typecheck, unit tests, integration tests, production builds, and `docker compose up --build`.
 
-Unresolved: no GitHub Actions run has been observed, because this directory is not a git repository.
+Unresolved: nothing that blocks Milestone 1. `foundationHealth` remains temporary scaffolding and must be removed before production.
 
-Milestone 1 meets its local acceptance criteria. Milestone 2 was not started.
+Milestone 1 meets its acceptance criteria. Milestone 2 was not started.

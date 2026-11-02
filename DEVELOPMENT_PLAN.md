@@ -99,6 +99,8 @@ M8 waits for clubs because club events are part of the feed, and it waits for us
 
 **Goal.** A person can register, verify email, log in, recover a password, edit a profile, and follow someone.
 
+**Implementation status.** Milestone 2 authentication and user code is in the repository. Public authentication mutations fail closed when Redis cannot store abuse counters. Admin outbox retry enqueues the same job before clearing `processing_failed_at`. Favorite rows wait for the Milestone 3 catalog tables. Verification details are in `MILESTONE_2_REPORT.md`. Approved decisions are unchanged.
+
 **Depends on.** Milestone 1.
 
 **Deliverables.**

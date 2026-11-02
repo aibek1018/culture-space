@@ -4,7 +4,10 @@ on:
   push:
     branches:
       - main
+      - 'feature/**'
   pull_request:
+    branches:
+      - main
 
 permissions:
   contents: read
@@ -128,9 +131,163 @@ jobs:
       - name: Integration tests
         run: pnpm test:integration
 
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: culturespace
+          POSTGRES_PASSWORD: culturespace
+          POSTGRES_DB: culturespace
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U culturespace -d culturespace"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      NODE_ENV: test
+      API_PORT: 4000
+      DATABASE_URL: postgresql://culturespace:culturespace@localhost:5432/culturespace
+      REDIS_URL: redis://localhost:6379
+      SESSION_SECRET: ci-session-secret-not-for-production-use
+      APP_ORIGIN: http://localhost:3000
+      LOG_LEVEL: info
+      API_INTERNAL_URL: http://127.0.0.1:4000
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.16.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Require Redis noeviction
+        run: |
+          pnpm --filter @culture-space/api exec node --input-type=module -e "import { createClient } from 'redis'; const client = createClient({ url: process.env.REDIS_URL }); client.on('error', () => undefined); await client.connect(); await client.configSet('maxmemory-policy', 'noeviction'); const value = await client.configGet('maxmemory-policy'); if (value['maxmemory-policy'] !== 'noeviction') process.exit(1); await client.quit();"
+
+      - name: GraphQL end-to-end tests
+        run: pnpm test:e2e
+
+  tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [quality, unit, integration, e2e]
+    if: always()
+    steps:
+      - name: Require the Tests stage
+        run: |
+          results="${{ needs.quality.result }} ${{ needs.unit.result }} ${{ needs.integration.result }} ${{ needs.e2e.result }}"
+          echo "$results"
+          for result in $results; do
+            test "$result" = "success"
+          done
+
+  migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [tests]
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: culturespace
+          POSTGRES_PASSWORD: culturespace
+          POSTGRES_DB: culturespace
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U culturespace -d culturespace"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      NODE_ENV: test
+      API_PORT: 4000
+      DATABASE_URL: postgresql://culturespace:culturespace@localhost:5432/culturespace_migrations
+      REDIS_URL: redis://127.0.0.1:6379
+      SESSION_SECRET: ci-session-secret-not-for-production-use
+      APP_ORIGIN: http://localhost:3000
+      LOG_LEVEL: info
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12.16.1
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Create a fresh disposable database
+        run: pnpm migration:prepare
+
+      - name: Apply migrations
+        run: |
+          set -o pipefail
+          output=$(pnpm migration:run)
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -F 'CreateIdentityTables1730563200000'
+          if printf '%s\n' "$output" | grep -F 'No migrations are pending'; then
+            echo 'The first migration run applied nothing'
+            exit 1
+          fi
+
+      - name: Verify schema constraints and synchronize false
+        run: pnpm migration:verify
+
+      - name: Apply migrations again
+        run: |
+          set -o pipefail
+          output=$(pnpm migration:run)
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -F 'No migrations are pending'
+
+      - name: Show that no migration is pending
+        run: |
+          set -o pipefail
+          output=$(pnpm migration:show)
+          printf '%s\n' "$output"
+          printf '%s\n' "$output" | grep -F '[X] 1 CreateIdentityTables1730563200000'
+          if printf '%s\n' "$output" | grep -F '[ ]'; then
+            echo 'A migration is still pending'
+            exit 1
+          fi
+
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    needs: [migrations]
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -155,12 +312,12 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [quality, unit, integration, build]
+    needs: [tests, migrations, build]
     if: always()
     steps:
-      - name: Require every CI job
+      - name: Require every CI stage
         run: |
-          results="${{ needs.quality.result }} ${{ needs.unit.result }} ${{ needs.integration.result }} ${{ needs.build.result }}"
+          results="${{ needs.tests.result }} ${{ needs.migrations.result }} ${{ needs.build.result }}"
           echo "$results"
           for result in $results; do
             test "$result" = "success"

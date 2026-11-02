@@ -96,15 +96,16 @@ pnpm lint
 pnpm typecheck
 pnpm test
 pnpm test:integration
+pnpm test:e2e
 pnpm build
 pnpm format
 ```
 
 `pnpm test` does not need PostgreSQL or Redis. It covers environment validation, the disabled TypeORM synchronize flag, session cookie flags, password policy, privacy, outbox reconciliation decisions, process startup, `GET /health`, `GET /ready` when both dependencies are down, and the temporary GraphQL query.
 
-`pnpm test:integration` needs PostgreSQL and Redis. It creates `culturespace_test` from the database named in `DATABASE_URL` and runs the authentication, follow, and outbox journeys there. Mail is replaced by an in-process mailer, so Mailpit is not required for CI.
+`pnpm test:integration` needs PostgreSQL and Redis. It creates `culturespace_test` from the database named in `DATABASE_URL` and runs the authentication, follow, and outbox journeys there. `pnpm test:e2e` runs the GraphQL register, verify, login, and follow journey in that same test database. Mail is replaced by an in-process mailer, so Mailpit is not required for CI.
 
-GitHub Actions runs format, lint, typecheck, unit tests, integration tests, and production builds as separate jobs. The integration job sets Redis `maxmemory-policy` to `noeviction`. The `verify` job passes only when every job passes. The workflow is `.github/workflows/ci.yml`. It does not deploy.
+GitHub Actions runs three stages: Tests, then Migrations, then Build. The required status check is `verify`. The workflow is `.github/workflows/ci.yml`. Details are in `CI_PIPELINE_REPORT.md`. It does not deploy.
 
 ## Temporary GraphQL query
 

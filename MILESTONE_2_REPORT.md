@@ -154,7 +154,7 @@ The API container uses `SMTP_HOST=mailpit` and signs avatar URLs for `http://hos
 
 ## GitHub Actions status
 
-The first remote run of `3ee836b`, https://github.com/aibek1018/culture-space/actions/runs/41438733810, failed in `quality` because `pnpm typecheck` loads `apps/web/next.config.ts` and that file requires `API_INTERNAL_URL`. The workflow now sets `API_INTERNAL_URL=http://127.0.0.1:4000` for every job. `unit`, `integration`, and `e2e` passed on that run. `migrations` and `build` did not start.
+The push of `3ee836b`, https://github.com/aibek1018/culture-space/actions/runs/41438733810, failed in `quality` because `pnpm typecheck` loads `apps/web/next.config.ts` and that file requires `API_INTERNAL_URL`. `unit`, `integration`, and `e2e` passed. `migrations` and `build` did not start. Commit `dd73db0` sets `API_INTERNAL_URL=http://127.0.0.1:4000` for every job. The push run https://github.com/aibek1018/culture-space/actions/runs/41439524911 and the pull-request run https://github.com/aibek1018/culture-space/actions/runs/41439532963 both completed with `quality`, `unit`, `integration`, `e2e`, `tests`, `migrations`, `build`, and `verify` successful.
 
 The workflow is three stages: Tests (`quality`, `unit`, `integration`, `e2e`, then the `tests` gate), Migrations, then Build. The stable required check remains `verify`. Triggers are pushes to `main`, pushes to `feature/**`, and pull requests targeting `main`. The integration and end-to-end jobs use PostgreSQL 17 and Redis 7 and set `maxmemory-policy` to `noeviction`. The migration job uses a separate fresh PostgreSQL 17 database named `culturespace_migrations`. Exact commands and local results are in `CI_PIPELINE_REPORT.md`. The branch has not been merged.
 
@@ -165,7 +165,7 @@ The workflow is three stages: Tests (`quality`, `unit`, `integration`, `e2e`, th
 - `changeUserRole`, `suspendUser`, and `restrictUser` are not implemented. They need `moderation_actions`, which is a later milestone. Restriction enforcement is present for rows that already exist.
 - The development database contains the Mailpit verification account `milestone2-mailpit@example.com` / `mailpit_check`.
 - `@swc/core` postinstall inside the Linux API container warned about the native binding. The web container was already healthy and was not rebuilt in this session.
-- Remote CI has not run on this branch.
+- The pull request is open and has not been merged. Remote CI on `dd73db0` passed.
 
 ## Deviations from the approved architecture
 
@@ -196,7 +196,7 @@ No JWT authentication, Prisma, REST auth API, catalog client, or Milestone 3 tab
 | Security and privacy tests                                            | PASS                                                                                                                                                    |
 | TypeScript, lint, format, unit tests, integration tests, and builds   | PASS                                                                                                                                                    |
 | Docker Compose continues to work                                      | PASS. Six services healthy after recreating Redis and the API. `/ready` returned 200.                                                                   |
-| CI remains green                                                      | NOT VERIFIED. No remote run for this branch.                                                                                                            |
+| CI remains green                                                      | PASS. Runs 41439524911 and 41439532963 on `dd73db0` completed successfully, including `verify`.                                                         |
 | No Milestone 3 or later business functionality                        | PASS                                                                                                                                                    |
 | Favorite genre and person persistence                                 | Documented boundary. Tables are not created. Empty selections succeed. Non-empty selections return `favorites.catalog_unavailable`.                     |
 | Role and restriction mutations that require moderation actions        | Not implemented, by milestone boundary. Enforcement of existing restriction rows is present.                                                            |

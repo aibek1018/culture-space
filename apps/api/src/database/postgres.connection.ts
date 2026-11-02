@@ -38,7 +38,7 @@ export class PostgresConnection implements OnModuleDestroy {
     }
   }
 
-  private async ensureInitialized(): Promise<void> {
+  async ensureInitialized(): Promise<void> {
     if (this.dataSource.isInitialized) {
       return;
     }

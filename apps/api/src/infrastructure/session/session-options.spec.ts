@@ -20,6 +20,7 @@ describe('createSessionOptions', () => {
     expect(options.name).toBe(SESSION_COOKIE_NAME);
     expect(options.resave).toBe(false);
     expect(options.saveUninitialized).toBe(false);
+    expect(options.rolling).toBe(true);
     expect(options.cookie).toMatchObject({
       httpOnly: true,
       sameSite: 'lax',

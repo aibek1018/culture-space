@@ -4,6 +4,9 @@ import { z } from 'zod';
 export const LOCAL_DEVELOPMENT_SESSION_SECRET =
   'dev-only-session-secret-change-me!!';
 
+/** Local MinIO password from Compose. Production startup rejects it. */
+export const LOCAL_DEVELOPMENT_MINIO_SECRET = 'culturespace-dev-only';
+
 const nodeEnvSchema = z.enum(['development', 'test', 'production']);
 const logLevelSchema = z.enum([
   'fatal',
@@ -31,6 +34,43 @@ const envSchema = z.object({
     .string()
     .regex(/^https?:\/\/\S+$/, 'APP_ORIGIN must be an absolute http(s) URL'),
   LOG_LEVEL: logLevelSchema,
+  SMTP_HOST: z.string().min(1).max(255).default('127.0.0.1'),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
+  SMTP_FROM: z.string().min(3).max(320).default('noreply@culturespace.local'),
+  SMTP_USER: z.string().max(320).optional(),
+  SMTP_PASSWORD: z.string().max(256).optional(),
+  MINIO_ENDPOINT: z
+    .string()
+    .regex(/^https?:\/\/\S+$/, 'MINIO_ENDPOINT must be an absolute http(s) URL')
+    .default('http://127.0.0.1:9000'),
+  MINIO_ACCESS_KEY: z.string().min(1).max(256).default('culturespace'),
+  MINIO_SECRET_KEY: z
+    .string()
+    .min(8)
+    .max(256)
+    .default(LOCAL_DEVELOPMENT_MINIO_SECRET),
+  MINIO_BUCKET: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/)
+    .default('avatars'),
+  MINIO_PUBLIC_BASE_URL: z
+    .string()
+    .regex(
+      /^https?:\/\/\S+$/,
+      'MINIO_PUBLIC_BASE_URL must be an absolute http(s) URL',
+    )
+    .default('http://127.0.0.1:9000'),
+  OUTBOX_POLL_INTERVAL_MS: z.coerce
+    .number()
+    .int()
+    .min(0)
+    .max(3_600_000)
+    .default(1000),
+  OUTBOX_BACKOFF_MS: z.coerce.number().int().min(10).max(300_000).default(1000),
+  OUTBOX_QUEUE_NAME: z
+    .string()
+    .regex(/^[a-z0-9][a-z0-9-]{0,62}$/)
+    .default('cs-outbox'),
 });
 
 export type NodeEnv = z.infer<typeof nodeEnvSchema>;
@@ -44,6 +84,19 @@ export interface AppConfig {
   sessionSecret: string;
   appOrigin: string;
   logLevel: LogLevel;
+  smtpHost: string;
+  smtpPort: number;
+  smtpFrom: string;
+  smtpUser: string | null;
+  smtpPassword: string | null;
+  minioEndpoint: string;
+  minioAccessKey: string;
+  minioSecretKey: string;
+  minioBucket: string;
+  minioPublicBaseUrl: string;
+  outboxPollIntervalMs: number;
+  outboxBackoffMs: number;
+  outboxQueueName: string;
 }
 
 /**
@@ -74,7 +127,20 @@ export function validateEnv(input: Record<string, unknown>): AppConfig {
         'Invalid environment: APP_ORIGIN: Production APP_ORIGIN must use https',
       );
     }
+    if (parsed.MINIO_SECRET_KEY === LOCAL_DEVELOPMENT_MINIO_SECRET) {
+      throw new Error(
+        'Invalid environment: MINIO_SECRET_KEY: Refusing the local development object-storage secret in production',
+      );
+    }
+    if (!parsed.MINIO_PUBLIC_BASE_URL.startsWith('https://')) {
+      throw new Error(
+        'Invalid environment: MINIO_PUBLIC_BASE_URL: Production media URL must use https',
+      );
+    }
   }
+
+  const smtpUser = blankToNull(parsed.SMTP_USER);
+  const smtpPassword = blankToNull(parsed.SMTP_PASSWORD);
 
   return {
     nodeEnv: parsed.NODE_ENV,
@@ -84,5 +150,25 @@ export function validateEnv(input: Record<string, unknown>): AppConfig {
     sessionSecret: parsed.SESSION_SECRET,
     appOrigin: parsed.APP_ORIGIN,
     logLevel: parsed.LOG_LEVEL,
+    smtpHost: parsed.SMTP_HOST,
+    smtpPort: parsed.SMTP_PORT,
+    smtpFrom: parsed.SMTP_FROM,
+    smtpUser,
+    smtpPassword,
+    minioEndpoint: parsed.MINIO_ENDPOINT,
+    minioAccessKey: parsed.MINIO_ACCESS_KEY,
+    minioSecretKey: parsed.MINIO_SECRET_KEY,
+    minioBucket: parsed.MINIO_BUCKET,
+    minioPublicBaseUrl: parsed.MINIO_PUBLIC_BASE_URL.replace(/\/$/, ''),
+    outboxPollIntervalMs: parsed.OUTBOX_POLL_INTERVAL_MS,
+    outboxBackoffMs: parsed.OUTBOX_BACKOFF_MS,
+    outboxQueueName: parsed.OUTBOX_QUEUE_NAME,
   };
+}
+
+function blankToNull(value: string | undefined): string | null {
+  if (value === undefined || value.trim().length === 0) {
+    return null;
+  }
+  return value;
 }

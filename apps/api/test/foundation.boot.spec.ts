@@ -103,4 +103,68 @@ describe('NestJS foundation boot', () => {
     expect(response.body).toEqual({ data: { foundationHealth: 'ok' } });
     expect(JSON.stringify(response.body)).not.toContain('cs.sid');
   });
+
+  it('rejects public auth mutations when Redis cannot store abuse counters', async () => {
+    app = await boot(closedPortEnv);
+    const server = request(app.getHttpServer());
+
+    const health = await server.post('/graphql').send({
+      query: '{ foundationHealth }',
+    });
+    expect(health.body).toEqual({ data: { foundationHealth: 'ok' } });
+
+    const login = await server
+      .post('/graphql')
+      .set('Origin', 'http://localhost:3000')
+      .set('x-culturespace-client', 'web')
+      .send({
+        query: 'mutation($input: LoginInput!) { login(input: $input) { id } }',
+        variables: {
+          input: { email: 'person@example.com', password: 'correct-horse' },
+        },
+      });
+    expect(login.status).toBe(200);
+    expect(login.body.data?.login ?? null).toBeNull();
+    expect(login.body.errors?.[0]?.extensions).toEqual({
+      code: 'EXTERNAL_UNAVAILABLE',
+      i18nKey: 'auth.rate_limit_unavailable',
+    });
+
+    const registration = await server
+      .post('/graphql')
+      .set('Origin', 'http://localhost:3000')
+      .set('x-culturespace-client', 'web')
+      .send({
+        query:
+          'mutation($input: RegisterInput!) { register(input: $input) { id } }',
+        variables: {
+          input: {
+            username: 'reader_one',
+            fullName: 'Reader One',
+            email: 'person@example.com',
+            password: 'correct-horse',
+            preferredLanguage: 'EN',
+          },
+        },
+      });
+    expect(registration.body.data?.register ?? null).toBeNull();
+    expect(registration.body.errors?.[0]?.extensions?.code).toBe(
+      'EXTERNAL_UNAVAILABLE',
+    );
+
+    const reset = await server
+      .post('/graphql')
+      .set('Origin', 'http://localhost:3000')
+      .set('x-culturespace-client', 'web')
+      .send({
+        query:
+          'mutation($email: String!) { requestPasswordReset(email: $email) }',
+        variables: { email: 'person@example.com' },
+      });
+    expect(reset.body.data?.requestPasswordReset ?? null).toBeNull();
+    expect(reset.body.errors?.[0]?.extensions?.code).toBe(
+      'EXTERNAL_UNAVAILABLE',
+    );
+    expect(JSON.stringify(reset.body)).not.toContain('person@example.com');
+  }, 40000);
 });

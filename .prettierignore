@@ -1,0 +1,14 @@
+node_modules
+dist
+.next
+coverage
+pnpm-lock.yaml
+*.tsbuildinfo
+AGENTS.md
+PROJECT_SPEC.md
+ARCHITECTURE.md
+ARCHITECTURE_REVIEW.md
+DATABASE.md
+GRAPHQL_API.md
+DEVELOPMENT_PLAN.md
+apps/web/next-env.d.ts

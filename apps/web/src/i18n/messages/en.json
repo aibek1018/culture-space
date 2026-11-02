@@ -1,0 +1,12 @@
+{
+  "foundation": {
+    "title": "CULTURE SPACE",
+    "status": "The application foundation is running.",
+    "description": "This is the Milestone 1 shell. Product features are not available yet.",
+    "language": "Language",
+    "locales": {
+      "en": "English",
+      "ru": "Русский"
+    }
+  }
+}

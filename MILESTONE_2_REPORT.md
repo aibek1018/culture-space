@@ -89,17 +89,18 @@ Jest unit tests do not need PostgreSQL or Redis. Integration tests create `cultu
 
 Final local results:
 
-| Command                                                            | Result                                                                                     |
-| ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| `pnpm format`                                                      | Pass. All matched files use Prettier.                                                      |
-| `pnpm lint`                                                        | Pass. API and web ESLint.                                                                  |
-| `pnpm typecheck`                                                   | Pass. API `tsc` and web `next typegen` plus `tsc`.                                         |
-| `pnpm test`                                                        | Pass. Web 2 suites, 4 tests. API 12 suites, 36 tests.                                      |
-| `pnpm --filter @culture-space/api test -- --forceExit`             | Pass. 12 suites, 36 tests.                                                                 |
-| `pnpm --filter @culture-space/api test:integration -- --forceExit` | Pass. 3 suites, 24 tests, 24.3 s. `DATABASE_URL` pointed at `127.0.0.1:5433/culturespace`. |
-| `pnpm build`                                                       | Pass. API `nest build` and web `next build`.                                               |
+| Command                    | Result                                                                                     |
+| -------------------------- | ------------------------------------------------------------------------------------------ |
+| `pnpm format`              | Pass. All matched files use Prettier.                                                      |
+| `pnpm lint`                | Pass. API and web ESLint.                                                                  |
+| `pnpm typecheck`           | Pass. API `tsc` and web `next typegen` plus `tsc`.                                         |
+| `pnpm test`                | Pass. Web 2 suites, 4 tests. API 12 suites, 36 tests.                                      |
+| `pnpm test:integration`    | Pass. 3 suites, 24 tests, 22.5 s. `DATABASE_URL` pointed at `127.0.0.1:5433/culturespace`. |
+| `pnpm test:e2e`            | Pass. 1 suite, 1 test, 7.8 s. Same PostgreSQL and Redis as integration.                    |
+| `pnpm build`               | Pass. API `nest build` and web `next build`.                                               |
+| Disposable migration stage | Pass. See `CI_PIPELINE_REPORT.md`. Fresh database `culturespace_migrations` on port 5433.  |
 
-The integration suite covers duplicate and case-insensitive email and username rejection, credential enumeration, verification expiry and single use, session regeneration, idle and absolute expiry, logout and logout-all, password change and reset session removal, role change on the next request, unverified follow, self-follow, idempotent follow, private follower lists, outbox rollback, the Q-22 detach fixture, the register-verify-login-follow journey, empty favorites, and `favorites.catalog_unavailable`. Outbox tests cover permanent failure and admin retry, a requeue that happens before the failure mark is cleared, duplicate SMTP delivery with one token row, repeated session deletion, missed failure events, missing Redis jobs, and unmarked waiting, delayed, active, and completed jobs, plus a second reconciliation scan. Unit tests cover public auth mutations returning `auth.rate_limit_unavailable` when Redis is closed, while `foundationHealth` still returns `ok`.
+The integration suite covers duplicate and case-insensitive email and username rejection, credential enumeration, verification expiry and single use, session regeneration, idle and absolute expiry, logout and logout-all, password change and reset session removal, role change on the next request, unverified follow, self-follow, idempotent follow, private follower lists, outbox rollback, the Q-22 detach fixture, the register-verify-login-follow journey, empty favorites, and `favorites.catalog_unavailable`. Outbox tests cover permanent failure and admin retry, a requeue that happens before the failure mark is cleared, duplicate SMTP delivery with one token row, repeated session deletion, missed failure events, missing Redis jobs, and unmarked waiting, delayed, active, and completed jobs, plus a second reconciliation scan. Unit tests cover public auth mutations returning `auth.rate_limit_unavailable` when Redis is closed, while `foundationHealth` still returns `ok`. `pnpm test:e2e` repeats the register, verify, login, and follow journey as the GraphQL end-to-end check.
 
 `pnpm migration:show` on the development database shows the identity migration applied.
 
@@ -113,15 +114,27 @@ pnpm format
 pnpm lint
 pnpm typecheck
 pnpm test -- --forceExit
+pnpm test:integration -- --forceExit
+pnpm test:e2e -- --forceExit
 pnpm build
-pnpm --filter @culture-space/api test -- --forceExit
-pnpm --filter @culture-space/api test:integration -- --forceExit
+pnpm migration:prepare
+pnpm migration:run
+pnpm migration:verify
+pnpm migration:run
+pnpm migration:show
+pnpm migration:verify
 ```
 
-Integration tests used:
+Integration and end-to-end tests used:
 
 ```text
 DATABASE_URL=postgresql://culturespace:culturespace@127.0.0.1:5433/culturespace
+```
+
+The migration stage used:
+
+```text
+DATABASE_URL=postgresql://culturespace:culturespace@127.0.0.1:5433/culturespace_migrations
 ```
 
 The `docker` client is not on `PATH`. Compose was invoked with `%LOCALAPPDATA%\Programs\DockerDesktop\resources\bin\docker.exe`.
@@ -141,9 +154,9 @@ The API container uses `SMTP_HOST=mailpit` and signs avatar URLs for `http://hos
 
 ## GitHub Actions status
 
-NOT VERIFIED. These changes have not been pushed, and this session did not start a remote workflow.
+NOT VERIFIED. The corrected workflow is committed locally and has not been pushed. No remote run was started, and the branch was not merged.
 
-The workflow now has separate `quality`, `unit`, `integration`, and `build` jobs. `quality` runs `pnpm format`, lint, and typecheck. `verify` succeeds only when all four jobs succeed. Pull-request runs in the same concurrency group cancel the older run. The integration job uses PostgreSQL 17 and Redis 7 and sets `maxmemory-policy` to `noeviction` before the tests. Compose Redis already starts with that policy. CI integration tests still replace the mail port, so Mailpit is not required.
+The workflow is three stages: Tests (`quality`, `unit`, `integration`, `e2e`, then the `tests` gate), Migrations, then Build. The stable required check remains `verify`. Triggers are pushes to `main`, pushes to `feature/**`, and pull requests targeting `main`. The integration and end-to-end jobs use PostgreSQL 17 and Redis 7 and set `maxmemory-policy` to `noeviction`. The migration job uses a separate fresh PostgreSQL 17 database named `culturespace_migrations`. Exact commands and local results are in `CI_PIPELINE_REPORT.md`.
 
 ## Remaining issues
 

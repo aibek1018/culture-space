@@ -101,4 +101,13 @@ The development database `culturespace` was not dropped or migrated by this chec
 
 ## Remote status
 
-The first push of `3ee836b` ran https://github.com/aibek1018/culture-space/actions/runs/41438733810. `unit`, `integration`, and `e2e` succeeded. `quality` failed in `pnpm typecheck` with `API_INTERNAL_URL is required`. `tests` and `verify` failed because of that. `migrations` and `build` were skipped. The workflow now sets the variable before the next run.
+Push `3ee836b`: https://github.com/aibek1018/culture-space/actions/runs/41438733810 failed. `unit`, `integration`, and `e2e` succeeded. `quality` failed in `pnpm typecheck` with `API_INTERNAL_URL is required`. `tests` and `verify` failed. `migrations` and `build` were skipped.
+
+Commit `dd73db0` sets the variable. Both later runs completed with conclusion `success`:
+
+| Run         | Event        | URL                                                                 |
+| ----------- | ------------ | ------------------------------------------------------------------- |
+| 41439524911 | push         | https://github.com/aibek1018/culture-space/actions/runs/41439524911 |
+| 41439532963 | pull_request | https://github.com/aibek1018/culture-space/actions/runs/41439532963 |
+
+On each run, `quality`, `unit`, `integration`, `e2e`, `tests`, `migrations`, `build`, and `verify` concluded `success`. The pull request was not merged.

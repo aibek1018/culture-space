@@ -97,6 +97,8 @@ Migration commands used `DATABASE_URL=postgresql://culturespace:culturespace@127
 
 The development database `culturespace` was not dropped or migrated by this check.
 
+`quality` and `build` need `API_INTERNAL_URL` because `apps/web/next.config.ts` reads it while generating route types and while building. The workflow sets `API_INTERNAL_URL=http://127.0.0.1:4000` for every job. A checkout has no root `.env`.
+
 ## Remote status
 
-NOT VERIFIED. This correction was not pushed, and no GitHub Actions run was observed. The branch was not merged into `main`.
+The first push of `3ee836b` ran https://github.com/aibek1018/culture-space/actions/runs/41438733810. `unit`, `integration`, and `e2e` succeeded. `quality` failed in `pnpm typecheck` with `API_INTERNAL_URL is required`. `tests` and `verify` failed because of that. `migrations` and `build` were skipped. The workflow now sets the variable before the next run.
